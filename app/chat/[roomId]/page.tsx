@@ -1,6 +1,4 @@
-// my-next-app/app/chat/[roomId]/page.tsx
-
-'use client'; 
+'use client'; // ★この行がファイルの先頭の1行目にあることを確認してください
 
 import { useEffect, useState, useRef } from 'react'; 
 import { io, Socket } from 'socket.io-client';     
@@ -10,11 +8,11 @@ interface Message {
   user: string;      
   text: string;      
   timestamp: string; 
-  imageUrl?: string; 
+  imageUrl?: string; // 画像URLのプロパティ
 }
 
-// ★重要: WebSocketサーバーの場所を指定します (あなたのPCの現在のIPアドレスに修正してください)
-const WEBSOCKET_SERVER_URL = 'http://192.168.128.194:3001'; // ★ここにあなたのPCの現在のIPアドレスを正確に記入
+// ★重要: WebSocketサーバーの場所を指定します (あなたのPCのIPアドレスに修正済みのはずです)
+const WEBSOCKET_SERVER_URL = 'http://192.168.40.183:3001'; // ★ここを現在のIPアドレスに修正
 
 export default function ChatPage() {
   const { roomId } = useParams(); 
@@ -28,20 +26,11 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null); 
   const fileInputRef = useRef<HTMLInputElement>(null); 
 
-  // --- WebRTC関連の状態と参照 ---
-  const [isCalling, setIsCalling] = useState(false); 
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null); 
-  const [remoteStreams, setRemoteStreams] = useState<MediaStream[]>([]); 
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null); 
-  const localAudioRef = useRef<HTMLAudioElement>(null); 
-  const remoteAudioRefs = useRef<(HTMLAudioElement | null)[]>([]); 
-
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]); 
 
-  // --- WebSocket接続とイベント（メッセージの送受信、WebRTCシグナリング）の設定 ---
+  // --- WebSocket接続とイベント（メッセージの送受信など）の設定 ---
   useEffect(() => {
     if (!roomId) return; 
 
@@ -69,168 +58,20 @@ export default function ChatPage() {
     newSocket.on('disconnect', () => {
       console.log('WebSocketサーバーから切断されました');
       setUsernameSet(false); 
-      endCall(); 
     });
 
     newSocket.on('connect_error', (err) => {
       console.error('接続エラー:', err.message);
       setUsernameSet(false); 
       alert('WebSocketサーバーへの接続に失敗しました。サーバーが起動しているか、URLが正しいか確認してください。');
-      endCall(); 
     });
 
-    // --- WebRTCシグナリングイベントリスナー ---
-    newSocket.on('callOffer', async (data: { sdp: RTCSessionDescriptionInit, from: string }) => {
-      console.log('Call Offer received from:', data.from);
-      if (!peerConnectionRef.current) {
-        console.warn('PeerConnection not initialized when offer received. Starting call setup.');
-        await setupPeerConnection(); 
-      }
-      if (!peerConnectionRef.current) return; 
-
-      try {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
-        newSocket.emit('callAnswer', { to: data.from, sdp: answer, roomId: roomId });
-        setIsCalling(true);
-        alert(`ユーザー ${data.from} からの通話に応答しました。`);
-      } catch (error) {
-        console.error('Error handling call offer:', error);
-      }
-    });
-
-    newSocket.on('callAnswer', async (data: { sdp: RTCSessionDescriptionInit, from: string }) => {
-      console.log('Call Answer received from:', data.from);
-      if (peerConnectionRef.current) {
-        try {
-          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        } catch (error) {
-          console.error('Error handling call answer:', error);
-        }
-      }
-    });
-
-    newSocket.on('iceCandidate', async (data: { candidate: RTCIceCandidateInit, from: string }) => {
-      console.log('ICE Candidate received from:', data.from);
-      if (peerConnectionRef.current) {
-        try {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (error) {
-          console.error('Error adding ICE candidate:', error);
-        }
-      }
-    });
-
-    newSocket.on('callEnded', () => {
-      console.log('通話が終了しました (サーバーからの通知)');
-      endCall();
-      alert('通話が終了しました。');
-    });
-
-
-    // クリーンアップ関数
     return () => {
       if (newSocket) {
         newSocket.disconnect();
       }
-      endCall(); 
     };
   }, [roomId]); 
-
-  // --- PeerConnectionのセットアップ関数 ---
-  const setupPeerConnection = async () => {
-    if (peerConnectionRef.current) return;
-
-    const configuration: RTCConfiguration = {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    };
-    const pc = new RTCPeerConnection(configuration);
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('ICE Candidate found:', event.candidate);
-        if (socket && username) {
-          socket.emit('iceCandidate', { to: 'all', candidate: event.candidate, roomId: roomId, from: username });
-        }
-      }
-    };
-
-    pc.ontrack = (event) => {
-      console.log('Remote track received:', event.track);
-      const newRemoteStream = new MediaStream([event.track]);
-      setRemoteStreams((prev) => {
-        if (prev.find(s => s.id === newRemoteStream.id)) return prev;
-        return [...prev, newRemoteStream];
-      });
-    };
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      stream.getTracks().forEach(track => pc.addTrack(track, stream)); 
-      setLocalStream(stream); 
-      if (localAudioRef.current) {
-        localAudioRef.current.srcObject = stream; 
-      }
-      console.log('Local audio stream acquired.');
-    } catch (error) {
-      console.error('Error getting user media (audio):', error);
-      alert('マイクへのアクセスが拒否されました。通話を開始できません。');
-      return null; 
-    }
-
-    peerConnectionRef.current = pc; 
-    return pc; 
-  };
-
-  // --- 通話開始関数 ---
-  const startCall = async () => {
-    if (!socket || !usernameSet || !roomId) {
-      alert('ユーザー名を設定してチャットに参加してください。');
-      return;
-    }
-    if (isCalling) {
-      alert('既に通話中です。');
-      return;
-    }
-
-    console.log('通話を開始します...');
-    const pc = await setupPeerConnection();
-    if (!pc) return; 
-
-    try {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('callOffer', { sdp: offer, roomId: roomId, from: username });
-      setIsCalling(true);
-      console.log('Call Offer sent.');
-    } catch (error) {
-      console.error('Error creating or sending offer:', error);
-      alert('通話の開始に失敗しました。');
-      endCall();
-    }
-  };
-
-  // --- 通話終了関数 ---
-  const endCall = () => {
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-      console.log('PeerConnectionを閉じました。');
-    }
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-      console.log('Local streamを停止しました。');
-    }
-    setRemoteStreams([]);
-    setIsCalling(false);
-    if (socket && username && roomId) {
-        socket.emit('callEnded', { roomId: roomId, from: username }); 
-    }
-    console.log('通話を終了しました。');
-  };
-
 
   const handleSetUsername = () => {
     if (username.trim()) {
@@ -293,7 +134,7 @@ export default function ChatPage() {
         handleSetUsername(); 
       } else {
         if (e.shiftKey) { 
-          // Shift + Enter で改行 (textareaはデフォルトでEnterで改行)
+          // Shift + Enter で改行 
         } else { 
           e.preventDefault(); 
           sendMessage();    
@@ -314,7 +155,6 @@ export default function ChatPage() {
       overflow: 'hidden', 
       backgroundColor: '#f0f2f5' 
     }}>
-      {/* --- ヘッダー部分 --- */}
       <h1 style={{ 
         textAlign: 'center', 
         padding: '15px', 
@@ -327,7 +167,6 @@ export default function ChatPage() {
         プログラミング授業チャット: {roomId} 
       </h1>
 
-      {/* ユーザー名が設定済みでない場合はフォームを表示 */}
       {!usernameSet ? (
         <div style={{ padding: '20px', textAlign: 'center', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <p style={{ marginBottom: '20px', fontSize: '1.1em' }}>チャットに参加するために、ユーザー名を入力してください。</p>
@@ -347,9 +186,7 @@ export default function ChatPage() {
           </button>
         </div>
       ) : (
-        // ユーザー名設定済みの場合はチャットUIが表示される
         <>
-          {/* メッセージ表示エリア */}
           <div style={{ 
             flexGrow: 1,      
             overflowY: 'auto', 
@@ -383,17 +220,8 @@ export default function ChatPage() {
               </div>
             ))}
             <div ref={messagesEndRef} /> 
-
-            {/* 自分の音声モニタリング用 */}
-            <audio ref={localAudioRef} autoPlay muted style={{ display: 'none' }} />
-            {/* 相手の音声再生用 */}
-            {remoteStreams.map((stream, idx) => (
-                <audio key={stream.id || idx} ref={el => { if (el) remoteAudioRefs.current[idx] = el; }} autoPlay playsInline srcObject={stream} style={{ display: 'none' }} />
-            ))}
-
           </div>
 
-          {/* 入力フォームエリア */}
           <div style={{ 
             padding: '15px', 
             background: '#eee', 
@@ -426,7 +254,6 @@ export default function ChatPage() {
                   resize: 'vertical' 
                 }}
               />
-              {/* ファイル選択ボタン */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -446,25 +273,6 @@ export default function ChatPage() {
               >
                 送信
               </button>
-            </div>
-            {/* 通話ボタン */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px', gap: '10px' }}>
-                {!isCalling ? (
-                    <button
-                        onClick={startCall}
-                        disabled={!usernameSet || !socket} 
-                        style={{ padding: '12px 25px', background: '#FF5722', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '1.1em' }}
-                    >
-                        通話開始
-                    </button>
-                ) : (
-                    <button
-                        onClick={endCall}
-                        style={{ padding: '12px 25px', background: '#F44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '1.1em' }}
-                    >
-                        通話終了
-                    </button>
-                )}
             </div>
           </div>
         </>

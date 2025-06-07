@@ -1,6 +1,4 @@
-// my-next-app/app/page.tsx
-
-'use client'; 
+'use client'; // ★この行がファイルの先頭の1行目にあることを確認してください
 
 import { useState, useEffect } from 'react'; 
 import { QRCodeSVG } from 'qrcode.react';     
@@ -41,15 +39,13 @@ export default function HomePage() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-      {/* --- ヘッダー部分 --- */}
       <header style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
         <h1 style={{ color: '#333', fontSize: '1.8em' }}>プログラミング授業用チャットルームQRコード</h1>
         <p style={{ color: '#666', fontSize: '0.9em' }}>このQRコードをスキャンしてチャットに参加してください。</p>
       </header>
 
-      {/* --- localhost アクセス時の注意表示 --- */}
       {showInstructions && (
-        <div style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe8f', padding: '10px 15px', marginBottom: '20px', borderRadius: '4px', fontSize: '0.9em', color: '#856404' }}>
+        <div style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe58f', padding: '10px 15px', marginBottom: '20px', borderRadius: '4px', fontSize: '0.9em', color: '#856404' }}>
           <p><strong>注意:</strong> 現在 `localhost` でアクセスしています。</p>
           <p>
             他のデバイスでQRコードをスキャンしてテストするには、まずお使いのPCの**ローカルネットワークIPアドレス**（例: `http://192.168.X.X:3000` など、`next dev` 起動時にターミナルに表示される「Network」のアドレス）でこのページを開き直してから、QRコードを生成してください。
@@ -57,12 +53,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* --- QRコード生成エリア --- */}
       <section style={{ marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.4em', marginBottom: '15px', textAlign: 'center', color: '#333' }}>QRコードを生成</h2>
       </section>
 
-      {/* QRコード生成ボタン */}
       <section style={{ textAlign: 'center', marginBottom: '30px' }}>
         <button
           onClick={handleGenerate}

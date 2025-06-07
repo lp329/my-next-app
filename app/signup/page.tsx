@@ -1,31 +1,23 @@
-k// my-next-app/app/signup/page.tsx
+'use client'; // ★この行がファイルの先頭の1行目にあることを確認してください
 
-'use client'; // クライアントサイドで実行されることを指定
-
-import { useState } from 'react'; // ReactのuseStateフックをインポート
+import { useState } from 'react'; 
 
 export default function SignUpPage() {
-  // ユーザー名とパスワードの状態を管理する変数
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  // 登録ボタンがクリックされたときの処理
   const handleSignUp = () => {
-    // 入力値が空でないかチェック
     if (username.trim() === '' || password.trim() === '') {
       alert('ユーザー名とパスワードを全て入力してください。');
       return;
     }
 
-    // ここではまだデータベースには保存しません。
-    // まずは入力された情報をコンソールに表示して確認します。
     console.log('--- ユーザー登録情報 ---');
     console.log('ユーザー名:', username);
-    console.log('パスワード:', password); // ★注意: 実際にはパスワードを直接ログには出しません。学習目的です。
+    console.log('パスワード:', password); 
     console.log('--------------------');
 
     alert('登録情報をコンソールに出力しました！');
-    // 今後、ここにデータベース保存などの処理を追加します。
   };
 
   return (
@@ -70,7 +62,7 @@ export default function SignUpPage() {
         <div style={{ marginBottom: '30px' }}>
           <label htmlFor="password" style={{ display: 'block', textAlign: 'left', marginBottom: '5px', fontWeight: 'bold' }}>パスワード:</label>
           <input
-            type="password" // パスワードは隠して表示
+            type="password" 
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
